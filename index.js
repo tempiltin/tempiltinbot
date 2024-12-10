@@ -81,12 +81,10 @@ bot.onText(/\/start/, async (msg) => {
 bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
-
   if (query.data === 'check_subscription') {
     try {
       const res = await bot.getChatMember(channelNumericId, userId);
       const status = res.status;
-
       if (['member', 'administrator', 'creator'].includes(status)) {
         bot.sendMessage(chatId, "Siz kanalga obuna bo'lgansiz. Iltimos, telefon raqamingizni yuboring.", {
           reply_markup: {
