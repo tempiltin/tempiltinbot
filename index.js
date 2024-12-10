@@ -2,7 +2,6 @@ const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const User = require("./models/User");
 require('dotenv').config();
-const fetch = require('node-fetch'); 
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 const channelId = process.env.CHANNEL_ID;
