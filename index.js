@@ -6,7 +6,7 @@ const handleCurrencyQuery = require('./handlers/currencyHandler');
 const handlePrayerQuery = require('./handlers/prayerHandler');
 const handleStartCommand = require('./handlers/startHandler');
 
-const token = process.env.BOT_TOKEN_TEST;
+const token = process.env.BOT_TOKEN;
 const channelId = process.env.CHANNEL_ID;
 const channelNumericId = process.env.CHANNELNUMERICID;
 
