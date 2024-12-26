@@ -1,47 +1,61 @@
-require('dotenv').config();
-const TelegramBot = require('node-telegram-bot-api');
-const mongoose = require('mongoose');
-const handleContact = require('./handlers/contactHandler');
-const handleCurrencyQuery = require('./handlers/currencyHandler');
-const handlePrayerQuery = require('./handlers/prayerHandler');
-const handleStartCommand = require('./handlers/startHandler');
+import TelegramBot from 'node-telegram-bot-api';
+import dotenv from 'dotenv';
+import { connectDB } from './src/config/database.js';
+import { handleContact } from './src/handlers/contactHandler.js';
+import { handleSubscriptionCheck } from './src/handlers/subscriptionHandler.js';
+import { handleAdminBroadcast, isAdmin } from './src/handlers/adminHandler.js';
+import { User } from './src/models/User.js';
+
+dotenv.config();
 
 const token = process.env.BOT_TOKEN;
-const channelId = process.env.CHANNEL_ID;
-const channelNumericId = process.env.CHANNELNUMERICID;
+const channelId = process.env.CHANNELNUMERICID;
+const channelUsername = process.env.CHANNEL_ID;
 
-// Initialize bot with polling having set webhook to false
-const bot = new TelegramBot(token, {
-  polling: {
-    params: {
-      timeout: 50,
-      allowed_updates: ['message', 'callback_query']
+const bot = new TelegramBot(token, { polling: true });
+
+// Connect to MongoDB
+connectDB();
+
+// Start command handler
+bot.onText(/\/start/, async (msg) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+
+  try {
+    const user = await User.findOne({ userId: userId.toString() });
+    
+    if (user && user.phone) {
+      await handleSubscriptionCheck(bot, chatId, userId, channelId, channelUsername);
+    } else {
+      await handleSubscriptionCheck(bot, chatId, userId, channelId, channelUsername);
     }
-  },
-  webhook: false
-});
-
-mongoose.connect(process.env.MONGO_URI, { 
-  useNewUrlParser: true, 
-  useUnifiedTopology: true,
-  autoIndex: true
-}).then(() => {
-  console.log("MongoDB muvofaqiyatli ulandi");
-}).catch((err) => {
-  console.error("MongoDB bilan bog'lanishda xatolik:", err);
-});
-
-// Handle /start command
-bot.onText(/\/start/, (msg) => handleStartCommand(bot, msg, channelId, channelNumericId));
-
-// Handle contact sharing
-bot.on('contact', (msg) => handleContact(bot, msg, channelNumericId));
-
-// Handle callback queries
-bot.on('callback_query', async (query) => {
-  if (query.data === 'currency_rates' || query.data.match(/^[A-Z]{3}$/)) {
-    await handleCurrencyQuery(bot, query);
-  } else if (query.data === 'prayer_times' || query.data.startsWith('region_')) {
-    await handlePrayerQuery(bot, query);
+  } catch (error) {
+    console.error('Start command error:', error);
+    bot.sendMessage(chatId, "Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.");
   }
 });
+
+// Admin broadcast command
+bot.onText(/\/send-user-post/, async (msg) => {
+  if (isAdmin(msg.from.id)) {
+    await handleAdminBroadcast(bot, msg);
+  }
+});
+
+// Contact message handler
+bot.on('contact', async (msg) => {
+  await handleContact(bot, msg);
+});
+
+// Callback query handler
+bot.on('callback_query', async (query) => {
+  const chatId = query.message.chat.id;
+  const userId = query.from.id;
+
+  if (query.data === 'check_subscription') {
+    await handleSubscriptionCheck(bot, chatId, userId, channelId, channelUsername);
+  }
+});
+
+console.log('Bot started successfully');
